@@ -5,9 +5,10 @@ planner = Agent(
     goal="Plan engaging and factually accurate content on {topic}",
     backstory="You're working on planning a blog article "
               "about the topic: {topic} in 'https://medium.com/'."
+              "the raw content is this : {content}.\n"
               "You collect information that helps the "
               "audience learn something "
-              "and make informed decisions. "
+              "and make informed decisions. consider that it must not lose many information but prepare a plan on how to structure the content and make it attractive in medium articles style."
               "You have to prepare a detailed "
               "outline and the relevant topics and sub-topics that has to be a part of the"
               "blogpost."

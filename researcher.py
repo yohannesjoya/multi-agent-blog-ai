@@ -1,36 +1,25 @@
+from crewai import Agent,Task
 
-# researcher = Agent(
-#     role="Content Researcher",
-#     goal="Browse the links provided at {links} and",
-#     backstory="Your mission is to extract and compile all information "
-#         "relevant to the topic: {topic} from the given links."
-#         "You should gather detailed information, including all "
-#         "contents, sub-topics, code snippets, statistics, and any other relevant "
-#         "data present in the links. This compiled data will serve as "
-#         "the foundation for a blog post on the topic: {topic}."
-#         "Your work will enable the Content Planner to create an article based "
-#         "on the comprehensive information you provide.",
-#     allow_delegation=False,
-#     verbose=True
-# )
+researcher = Agent(
+    role="Content Researcher",
+    goal="Process the raw content provided by removing all unnecessary parts chunching into paragraphs.",
+    backstory="Your mission is to clean, organize and chunck into paragraphs from a given content."
+        "You should remove extraneous details, keeping the essential content, sub-topics, code snippets, statistics, and any other relevant data present in the content."
+        "Your work will enable the Content Planner to have clear, concise, and organized information, free from any unnecessary clutter.\nhere is the content: \n {content}.\n",
+    allow_delegation=False,
+    verbose=True,
+)
 
-# research = Task(
-#     description=(
-#         "1. Thoroughly review the provided links: {links} to "
-#             "extract all content relevant to {topic}.\n"
-#         "2. Ensure that you gather details such as text, code snippets, "
-#             "statistics, and any other relevant data directly from the links. "
-#             "Do not create or include any content that is not explicitly present in the provided links.\n"
-#         "3. Scrape the HTML from the links and extract every "
-#             "piece of information related to the topic: {topic}. "
-#             "This includes text, images, tables, and other media.\n"
-#         "4. Document all useful data, examples, statistics, and insights that "
-#             "pertain to {topic}. Make sure to include every "
-#             "relevant detail without omitting any information found in the links.\n"
-#         "5. Organize the gathered information clearly and "
-#             "accurately for easy reference, ensuring that all content is "
-#             "directly sourced from the provided links."
-#     ),
-#     expected_output="A comprehensive report of scraped information directly related to {topic} from the provided links. The report should include all relevant details and should not contain any generated content.",
-#     agent=researcher,
-# )
+research = Task(
+    description=(
+  "1. Receive the raw content to be processed.\n"
+        "2. Read through the entire content to understand its structure and main points."
+        "3. Identify and remove any extraneous details, such as redundant information, irrelevant data, and filler content."
+        "4. Chunk the cleaned content into distinct paragraphs, ensuring each paragraph covers a single sub-topic or idea."
+        "5. Retain all essential content, including sub-topics, code snippets, statistics, and any other relevant data."
+        "6. Ensure that each paragraph is directly related to the main topic."
+        "7. Verify that the final output is free from any unnecessary clutter and contains only the essential content.\n"""
+    ),
+    expected_output="A well-organized report with independently chuncked paragraphs from the provided content. The report should include concise summaries of each paragraph, grouped into related parts, and should not contain any generated content.",
+    agent=researcher,
+)

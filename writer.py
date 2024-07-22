@@ -8,7 +8,7 @@ writer = Agent(
               "a new opinion piece about the topic: {topic} in 'https://medium.com/'. "
               "You base your writing on the work of "
               "the Content Planner, who provides an outline "
-              "and relevant context about the topic. "
+              "and relevant context about the topic. and also here is the raw content for you to see : {content} "
               "You follow the main objectives and "
               "direction of the outline, "
               "as provide by the Content Planner. "

@@ -1,23 +1,22 @@
-from crewai import Agent, Task, Crew
-from langchain_openai import ChatOpenAI
 import os
+os.environ["OPENAI_API_BASE"] = os.getenv("API_BASE")
+os.environ["OPENAI_MODEL_NAME"] = os.getenv("MODEL")
+os.environ["OPENAI_API_KEY"] = os.getenv("GROQ_API_KEY") # paste your api key here
+
+from crewai import Crew
 from datetime import datetime
-
-os.environ["OPENAI_API_BASE"] = "https://api.groq.com/openai/v1"
-os.environ["OPENAI_MODEL_NAME"] = "llama3-8b-8192"
-os.environ["OPENAI_API_KEY"] = "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" # paste your api key here
-
-
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from planner import planner,plan
 from writer import writer,write
 from editor import editor,edit
+from researcher import researcher, research
+from scrapper import scrape_data, save_data
 
 crew = Crew(
-    agents=[planner,writer,editor],
-    tasks=[plan,write,edit],
+    agents=[researcher,planner,writer,editor],
+    tasks=[research,plan,write,edit],
     verbose=2
 )
 
@@ -34,13 +33,27 @@ app.add_middleware(
 # Post route
 @app.post("/api/v1/generate")
 def summarizePdf(request_body:dict):
-    # scraped_data  = request_body["raw_data"]
+
     inputs = request_body["inputs"]
+    links = inputs['links']
+
+    raw_data_collection = []
+    for link in links:
+        raw_data = scrape_data(link)
+        raw_data_collection.append(raw_data)
+
+    inputs['content'] = raw_data_collection
+
+    del inputs['links']
+    
     result = crew.kickoff(inputs=inputs)
-    now = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    save_data(str(result),timestamp,"blog",output_folder="generated")
+    
     response = {
         "content" : str(result),
-        "date" : now
+        "date" : timestamp
     }
     return JSONResponse(content=response, status_code=201)
 
@@ -48,11 +61,3 @@ def summarizePdf(request_body:dict):
 @app.get("/")
 def home():
     return {"hello":"world"}
-
-
-    # inputs = {"topic":"detail study of React19, the new features of latest react 19.",
-    #       "links" : ["https://react.dev/blog/2024/04/25/react-19"]
-    #       }
-    # filename : str = f"{now}.md"
-    # with open(filename, 'w') as file:
-    #     file.write(str(result))
