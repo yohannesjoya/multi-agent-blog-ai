@@ -52,7 +52,7 @@ def summarizePdf(request_body:dict):
     result = crew.kickoff(inputs=inputs)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-    save_data(str(result),timestamp,"blog",output_folder="generated")
+    # save_data(str(result),timestamp,"blog",output_folder="generated")
     
     response = {
         "content" : str(result),
