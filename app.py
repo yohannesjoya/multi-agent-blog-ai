@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 os.environ["OPENAI_API_BASE"] = os.getenv("API_BASE")
 os.environ["OPENAI_MODEL_NAME"] = os.getenv("MODEL")
 os.environ["OPENAI_API_KEY"] = os.getenv("GROQ_API_KEY") # paste your api key here
@@ -53,7 +56,7 @@ def summarizePdf(request_body:dict):
     
     response = {
         "content" : str(result),
-        "date" : timestamp
+        "publicationDate" : timestamp
     }
     return JSONResponse(content=response, status_code=201)
 
