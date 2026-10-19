@@ -1,6 +1,7 @@
 import ipaddress
 import os
 import socket
+import time
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -41,21 +42,32 @@ MAX_BYTES = 5_000_000
 USER_AGENT = "Mozilla/5.0 (compatible; MultiAgentBlogAI/1.0; +https://github.com/yohannesjoya/multi-agent-blog-ai)"
 
 
+_session = requests.Session()
+_session.trust_env = False  # ignore proxy env vars; the host check must apply to the real connection
+
+
 def fetch_public_html(url: str) -> str:
     """Fetch HTML, following redirects by hand so every hop is re-checked.
+
+    Bounded by a total deadline and a decoded-byte cap read in chunks, so a
+    slow or compressed response cannot stall or inflate past the limits.
 
     Residual risk, accepted for this rate-limited demo: the host is resolved
     for the check and again by requests for the connection (DNS rebinding
     window). Pinning the connection to the checked IP would need a custom
     transport that sets SNI and Host separately.
     """
+    deadline = time.monotonic() + FETCH_TIMEOUT
     current = url
     for _ in range(MAX_REDIRECTS + 1):
         assert_public_http_url(current)
-        resp = requests.get(
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ScrapeError(f"Timed out fetching {url}")
+        resp = _session.get(
             current,
             allow_redirects=False,
-            timeout=FETCH_TIMEOUT,
+            timeout=(5, remaining),
             stream=True,
             headers={"User-Agent": USER_AGENT},
         )
@@ -68,12 +80,18 @@ def fetch_public_html(url: str) -> str:
                 continue
             if resp.status_code != 200:
                 raise ScrapeError(f"HTTP {resp.status_code} from {current}")
-            body = resp.raw.read(MAX_BYTES + 1, decode_content=True)
+            chunks, total = [], 0
+            for chunk in resp.iter_content(chunk_size=65536):
+                if time.monotonic() > deadline:
+                    raise ScrapeError(f"Timed out fetching {url}")
+                total += len(chunk)
+                if total > MAX_BYTES:
+                    raise ScrapeError(f"Page too large: {current}")
+                chunks.append(chunk)
+            encoding = resp.encoding
         finally:
             resp.close()
-        if len(body) > MAX_BYTES:
-            raise ScrapeError(f"Page too large: {current}")
-        return body.decode(resp.encoding or "utf-8", errors="replace")
+        return b"".join(chunks).decode(encoding or "utf-8", errors="replace")
     raise ScrapeError(f"Too many redirects from {url}")
 
 
