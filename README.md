@@ -1,6 +1,6 @@
 # Multi-Agent Blog AI
 
-**Live demo:** https://yohannesdesta-multi-agent-blog-ai.hf.space — paste a topic and up to 3 article links. Free-tier demo, 20 posts/day.
+**Live demo:** https://multi-agent-blog-ai.onrender.com — paste a topic and up to 3 article links. Free-tier demo, 20 posts/day.
 
 Multi-Agent Blog AI is a FastAPI service that turns source links into a polished, Medium-style blog post. It uses a CrewAI workflow with specialized agents for research cleanup, content planning, writing, and editorial review, while trafilatura extracts clean markdown content from the provided URLs (no scraping API key needed).
 

@@ -15,7 +15,7 @@ from crewai import Crew
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 
 from editor import edit, editor
 from planner import plan, planner
@@ -70,7 +70,7 @@ def _take_daily_slot() -> int:
 
 class GenerateInputs(BaseModel):
     topic: str = Field(min_length=3, max_length=200)
-    links: list[str] = Field(min_length=1, max_length=MAX_LINKS)
+    links: list[HttpUrl] = Field(min_length=1, max_length=MAX_LINKS)
 
 
 class GenerateRequest(BaseModel):
@@ -84,7 +84,7 @@ def generate(body: GenerateRequest):
     content = []
     for link in body.inputs.links:
         try:
-            content.append(scrape_data(link))
+            content.append(scrape_data(str(link)))
         except ScrapeError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
