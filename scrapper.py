@@ -38,8 +38,9 @@ def scrape_data(url: str, max_chars: int = 20000) -> str:
     """Fetch a page and return its main article content as markdown.
 
     Uses trafilatura: no API key, runs fully inside the container.
-    Redirects are followed by trafilatura, so the public-host check is
-    repeated on the final URL it reports when available.
+    Residual risk: trafilatura follows redirects itself and does not expose
+    the final URL, so a public host redirecting to a private address is not
+    re-checked. Acceptable for a rate-limited demo with no internal services.
     """
     assert_public_http_url(url)
     downloaded = trafilatura.fetch_url(url)
