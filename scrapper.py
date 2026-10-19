@@ -1,8 +1,9 @@
 import ipaddress
 import os
 import socket
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import requests
 import trafilatura
 
 
@@ -34,16 +35,55 @@ def assert_public_http_url(url: str) -> None:
             raise ScrapeError(f"Blocked host: {host}")
 
 
+MAX_REDIRECTS = 5
+FETCH_TIMEOUT = 15
+MAX_BYTES = 5_000_000
+USER_AGENT = "Mozilla/5.0 (compatible; MultiAgentBlogAI/1.0; +https://github.com/yohannesjoya/multi-agent-blog-ai)"
+
+
+def fetch_public_html(url: str) -> str:
+    """Fetch HTML, following redirects by hand so every hop is re-checked.
+
+    Residual risk, accepted for this rate-limited demo: the host is resolved
+    for the check and again by requests for the connection (DNS rebinding
+    window). Pinning the connection to the checked IP would need a custom
+    transport that sets SNI and Host separately.
+    """
+    current = url
+    for _ in range(MAX_REDIRECTS + 1):
+        assert_public_http_url(current)
+        resp = requests.get(
+            current,
+            allow_redirects=False,
+            timeout=FETCH_TIMEOUT,
+            stream=True,
+            headers={"User-Agent": USER_AGENT},
+        )
+        try:
+            if resp.is_redirect or resp.is_permanent_redirect:
+                location = resp.headers.get("Location")
+                if not location:
+                    raise ScrapeError(f"Redirect without Location from {current}")
+                current = urljoin(current, location)
+                continue
+            if resp.status_code != 200:
+                raise ScrapeError(f"HTTP {resp.status_code} from {current}")
+            body = resp.raw.read(MAX_BYTES + 1, decode_content=True)
+        finally:
+            resp.close()
+        if len(body) > MAX_BYTES:
+            raise ScrapeError(f"Page too large: {current}")
+        return body.decode(resp.encoding or "utf-8", errors="replace")
+    raise ScrapeError(f"Too many redirects from {url}")
+
+
 def scrape_data(url: str, max_chars: int = 20000) -> str:
     """Fetch a page and return its main article content as markdown.
 
-    Uses trafilatura: no API key, runs fully inside the container.
-    Residual risk: trafilatura follows redirects itself and does not expose
-    the final URL, so a public host redirecting to a private address is not
-    re-checked. Acceptable for a rate-limited demo with no internal services.
+    Uses trafilatura for extraction only; fetching goes through
+    fetch_public_html so redirects cannot escape the public-host check.
     """
-    assert_public_http_url(url)
-    downloaded = trafilatura.fetch_url(url)
+    downloaded = fetch_public_html(url)
     if not downloaded:
         raise ScrapeError(f"Could not fetch {url}")
 
