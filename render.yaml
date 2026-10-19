@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: multi-agent-blog-ai
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: API_BASE
+        value: https://api.groq.com/openai/v1
+      - key: MODEL
+        value: openai/gpt-oss-120b
+      - key: DAILY_LIMIT
+        value: "20"
+      - key: GROQ_API_KEY
+        sync: false

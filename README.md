@@ -1,6 +1,8 @@
 # Multi-Agent Blog AI
 
-Multi-Agent Blog AI is a FastAPI service that turns source links into a polished, Medium-style blog post. It uses a CrewAI workflow with specialized agents for research cleanup, content planning, writing, and editorial review, while Firecrawl extracts clean markdown content from the provided URLs.
+**Live demo:** https://yohannesdesta-multi-agent-blog-ai.hf.space — paste a topic and up to 3 article links. Free-tier demo, 20 posts/day.
+
+Multi-Agent Blog AI is a FastAPI service that turns source links into a polished, Medium-style blog post. It uses a CrewAI workflow with specialized agents for research cleanup, content planning, writing, and editorial review, while trafilatura extracts clean markdown content from the provided URLs (no scraping API key needed).
 
 ## Features
 
@@ -20,14 +22,15 @@ Multi-Agent Blog AI is a FastAPI service that turns source links into a polished
 ├── planner.py      # Content planning agent and task
 ├── writer.py       # Blog writing agent and task
 ├── editor.py       # Editorial review agent and task
-├── scrapper.py     # Firecrawl scraping and optional markdown saving helpers
+├── scrapper.py     # trafilatura scraping and optional markdown saving helpers
+├── Dockerfile      # Container for Hugging Face Spaces / any Docker host
 └── packages.txt    # Python dependencies
 ```
 
 ## How It Works
 
 1. A client sends a topic and source links to `POST /api/v1/generate`.
-2. `scrapper.py` uses Firecrawl to extract the main markdown content from each link.
+2. `scrapper.py` uses trafilatura to extract the main markdown content from each link.
 3. The extracted content is passed through a CrewAI pipeline:
    - **Researcher** cleans and chunks the raw content.
    - **Planner** creates the content strategy and outline.
@@ -38,10 +41,9 @@ Multi-Agent Blog AI is a FastAPI service that turns source links into a polished
 ## Requirements
 
 - Python 3.10 or newer
-- Firecrawl API key
-- OpenAI-compatible API provider key and endpoint
+- An OpenAI-compatible API key and endpoint (Groq free tier works)
 
-The app is currently configured to read a Groq API key through `GROQ_API_KEY`, while setting OpenAI-compatible environment variables for CrewAI.
+The app reads `GROQ_API_KEY`, `API_BASE` and `MODEL` and hands them to CrewAI as OpenAI-compatible settings. `DAILY_LIMIT` caps generations per day (default 20).
 
 ## Installation
 
@@ -64,9 +66,9 @@ Create a `.env` file in the project root:
 
 ```env
 GROQ_API_KEY=your_groq_api_key
-API_BASE=your_openai_compatible_api_base_url
-MODEL=your_model_name
-CRAWLER_API_KEY=your_firecrawl_api_key
+API_BASE=https://api.groq.com/openai/v1
+MODEL=openai/gpt-oss-120b
+DAILY_LIMIT=20
 ```
 
 Example model values depend on your provider. For Groq, use the API base and model name provided in your Groq dashboard.
@@ -91,13 +93,7 @@ Health check:
 curl http://127.0.0.1:8000/
 ```
 
-Expected response:
-
-```json
-{
-  "hello": "world"
-}
-```
+`GET /` serves a small demo page; `GET /health` returns `{"status": "ok", "model": "..."}`; `GET /docs` is the OpenAPI UI.
 
 ## Generate a Blog Post
 
