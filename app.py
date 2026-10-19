@@ -12,6 +12,7 @@ os.environ["OPENAI_MODEL_NAME"] = os.getenv("MODEL", "openai/gpt-oss-120b")
 os.environ["OPENAI_API_KEY"] = os.getenv("GROQ_API_KEY", "")
 
 from crewai import Crew
+import openai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -30,7 +31,7 @@ crew = Crew(
 )
 
 DAILY_LIMIT = int(os.getenv("DAILY_LIMIT", "20"))
-MAX_LINKS = 3
+MAX_LINKS = 2  # Groq free tier: 8k tokens/min per request, so keep the crew's context small
 
 app = FastAPI(title="Multi-Agent Blog AI")
 app.add_middleware(
@@ -88,7 +89,14 @@ def generate(body: GenerateRequest):
         except ScrapeError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    result = crew.kickoff(inputs={"topic": body.inputs.topic, "content": content})
+    try:
+        result = crew.kickoff(inputs={"topic": body.inputs.topic, "content": content})
+    except openai.APIStatusError as exc:
+        # Free-tier limits and model outages reach here; say so instead of a bare 500.
+        raise HTTPException(
+            status_code=502,
+            detail=f"The language model refused the request ({exc.status_code}). Try shorter sources or wait a minute.",
+        ) from exc
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     return JSONResponse(
@@ -130,11 +138,11 @@ INDEX_HTML = """<!doctype html>
 </head>
 <body>
 <h1>Multi-Agent Blog AI</h1>
-<p class="sub">Paste 1–3 article links and a topic. Four agents (researcher, planner, writer, editor) turn them into a Medium-style post. Takes 1–3 minutes.</p>
+<p class="sub">Paste 1–2 article links and a topic. Four agents (researcher, planner, writer, editor) turn them into a Medium-style post. Takes 1–3 minutes.</p>
 <p class="links"><a href="https://github.com/yohannesjoya/multi-agent-blog-ai">Source</a><a href="/docs">API docs</a><a href="https://yohannes-desta.vercel.app">Author</a></p>
 <form id="f">
   <label>Topic<input name="topic" required minlength="3" placeholder="The future of AI agents in software development"></label>
-  <label>Source links (one per line, max 3)<textarea name="links" rows="3" required placeholder="https://example.com/article"></textarea></label>
+  <label>Source links (one per line, max 2)<textarea name="links" rows="3" required placeholder="https://example.com/article"></textarea></label>
   <button id="go" type="submit">Generate post</button>
 </form>
 <div id="status"></div>
@@ -145,7 +153,7 @@ const f = document.getElementById('f'), go = document.getElementById('go'),
 f.addEventListener('submit', async (e) => {
   e.preventDefault();
   const topic = f.topic.value.trim();
-  const links = f.links.value.split('\\n').map(s => s.trim()).filter(Boolean).slice(0, 3);
+  const links = f.links.value.split('\\n').map(s => s.trim()).filter(Boolean).slice(0, 2);
   go.disabled = true; out.style.display = 'none'; st.textContent = 'Scraping sources and running the crew…';
   try {
     const r = await fetch('/api/v1/generate', { method: 'POST', headers: {'Content-Type': 'application/json'},

@@ -105,7 +105,7 @@ def _fetch_with_session(session: requests.Session, url: str, current: str, deadl
     raise ScrapeError(f"Too many redirects from {url}")
 
 
-def scrape_data(url: str, max_chars: int = 20000) -> str:
+def scrape_data(url: str, max_chars: int = 4000) -> str:
     """Fetch a page and return its main article content as markdown.
 
     Uses trafilatura for extraction only; fetching goes through
