@@ -42,10 +42,6 @@ MAX_BYTES = 5_000_000
 USER_AGENT = "Mozilla/5.0 (compatible; MultiAgentBlogAI/1.0; +https://github.com/yohannesjoya/multi-agent-blog-ai)"
 
 
-_session = requests.Session()
-_session.trust_env = False  # ignore proxy env vars; the host check must apply to the real connection
-
-
 def fetch_public_html(url: str) -> str:
     """Fetch HTML, following redirects by hand so every hop is re-checked.
 
@@ -59,19 +55,33 @@ def fetch_public_html(url: str) -> str:
     """
     deadline = time.monotonic() + FETCH_TIMEOUT
     current = url
+    # Fresh session per call: no cookies or state carried between users' fetches,
+    # and proxy env vars ignored so the host check applies to the real connection.
+    session = requests.Session()
+    session.trust_env = False
+    try:
+        return _fetch_with_session(session, url, current, deadline)
+    finally:
+        session.close()
+
+
+def _fetch_with_session(session: requests.Session, url: str, current: str, deadline: float) -> str:
     for _ in range(MAX_REDIRECTS + 1):
         assert_public_http_url(current)
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise ScrapeError(f"Timed out fetching {url}")
-        resp = _session.get(
+        resp = session.get(
             current,
             allow_redirects=False,
-            timeout=(5, remaining),
+            # connect and per-read timeouts both capped by what is left of the budget
+            timeout=(min(5, remaining), min(10, remaining)),
             stream=True,
-            headers={"User-Agent": USER_AGENT},
+            headers={"User-Agent": USER_AGENT, "Accept-Encoding": "identity"},
         )
         try:
+            if resp.headers.get("Content-Encoding"):
+                raise ScrapeError(f"Compressed response refused from {current}")
             if resp.is_redirect or resp.is_permanent_redirect:
                 location = resp.headers.get("Location")
                 if not location:
